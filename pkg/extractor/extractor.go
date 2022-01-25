@@ -14,26 +14,22 @@ import (
 
 type MainExtractor struct {
 	Log    logrus.FieldLogger
-	Index  *DefaultIndexExtractor
-	Bundle *DefaultBundleExtractor
+	Index  IndexExtractor
+	Bundle BundleExtractor
 }
 
 // New - creates a new mainExtractor, with the provided options. Order of provided
 // options matter, as the logger descends into both the bundle and index extractors.
 func New(opts ...MainExtractorOpt) *MainExtractor {
-	log := logrus.New()
-	log.SetLevel(logrus.InfoLevel)
-
-	res := &MainExtractor{
-		Log:    log,
-		Index:  NewIndexExtractor(),
-		Bundle: NewBundleExtractor(),
-	}
+	var extractor MainExtractor
 
 	for _, opt := range opts {
-		opt(res)
+		opt(&extractor)
 	}
-	return res
+
+	extractor.ApplyDefaults()
+
+	return &extractor
 }
 
 type MainExtractorOpt func(e *MainExtractor)
@@ -53,8 +49,23 @@ func WithBundleExtractor(bundleExtractor *DefaultBundleExtractor) MainExtractorO
 func WithLog(log logrus.FieldLogger) MainExtractorOpt {
 	return func(e *MainExtractor) {
 		e.Log = log
-		e.Index.Log = log.WithField("source", "indexExtractor")
-		e.Bundle.Log = log.WithField("source", "bundleExtractor")
+	}
+}
+
+func (e *MainExtractor) ApplyDefaults() {
+	if e.Log == nil {
+		log := logrus.New()
+		log.SetLevel(logrus.InfoLevel)
+
+		e.Log = log
+	}
+
+	if e.Index == nil {
+		e.Index = NewIndexExtractor(WithIndexLog(e.Log))
+	}
+
+	if e.Bundle == nil {
+		e.Bundle = NewBundleExtractor(WithBundleLog(e.Log))
 	}
 }
 

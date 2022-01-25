@@ -21,15 +21,23 @@ type DefaultIndexExtractor struct {
 // NewIndexExtractor - takes a variadic slice of options to configure an
 // index extractor and applies defaults if no appropriate option is given.
 func NewIndexExtractor(opts ...IndexExtractorOpt) *DefaultIndexExtractor {
-	res := &DefaultIndexExtractor{
-		Cache: NewIndexMemoryCache(),
-		Log:   logrus.WithField("source", "indexExtractor"),
-	}
+	var extractor DefaultIndexExtractor
 
 	for _, opt := range opts {
-		opt(res)
+		opt(&extractor)
 	}
-	return res
+
+	if extractor.Cache == nil {
+		extractor.Cache = NewIndexMemoryCache()
+	}
+
+	if extractor.Log == nil {
+		extractor.Log = logrus.New()
+	}
+
+	extractor.Log = extractor.Log.WithField("source", "indexExtractor")
+
+	return &extractor
 }
 
 type IndexExtractorOpt func(e *DefaultIndexExtractor)
@@ -42,7 +50,7 @@ func WithIndexCache(cache IndexCache) IndexExtractorOpt {
 
 func WithIndexLog(log logrus.FieldLogger) IndexExtractorOpt {
 	return func(e *DefaultIndexExtractor) {
-		e.Log = log.WithField("source", "indexExtractor")
+		e.Log = log
 	}
 }
 

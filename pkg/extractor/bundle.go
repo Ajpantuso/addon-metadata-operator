@@ -20,25 +20,34 @@ import (
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 )
 
-const defaultTimeoutSec = 60 * time.Second
-
 type DefaultBundleExtractor struct {
-	Log        logrus.FieldLogger
-	Cache      BundleCache
-	TimeoutSec time.Duration
+	Log     logrus.FieldLogger
+	Cache   BundleCache
+	Timeout time.Duration
 }
 
 func NewBundleExtractor(opts ...BundleExtractorOpt) *DefaultBundleExtractor {
-	res := &DefaultBundleExtractor{
-		Log:        logrus.WithField("source", "bundleExtractor"),
-		Cache:      NewBundleMemoryCache(NewJSONSnappyEncoder()),
-		TimeoutSec: defaultTimeoutSec,
+	const defaultTimeout = 60 * time.Second
+
+	extractor := DefaultBundleExtractor{
+		Timeout: defaultTimeout,
 	}
 
 	for _, opt := range opts {
-		opt(res)
+		opt(&extractor)
 	}
-	return res
+
+	if extractor.Log == nil {
+		extractor.Log = logrus.New()
+	}
+
+	if extractor.Cache == nil {
+		extractor.Cache = NewBundleMemoryCache(NewJSONSnappyEncoder())
+	}
+
+	extractor.Log = extractor.Log.WithField("source", "bundleExtractor")
+
+	return &extractor
 }
 
 type BundleExtractorOpt func(e *DefaultBundleExtractor)
@@ -51,13 +60,13 @@ func WithBundleCache(cache BundleCache) BundleExtractorOpt {
 
 func WithBundleLog(log logrus.FieldLogger) BundleExtractorOpt {
 	return func(e *DefaultBundleExtractor) {
-		e.Log = log.WithField("source", "bundleExtractor")
+		e.Log = log
 	}
 }
 
 func WithBundleTimeout(timeoutSec time.Duration) BundleExtractorOpt {
 	return func(e *DefaultBundleExtractor) {
-		e.TimeoutSec = timeoutSec
+		e.Timeout = timeoutSec
 	}
 }
 
@@ -105,7 +114,7 @@ func (e *DefaultBundleExtractor) Extract(ctx context.Context, bundleImage string
 func (e *DefaultBundleExtractor) unpackAndValidateBundle(ctx context.Context, bundleImage string, tmpDirs tempDirs) error {
 	e.Log.Debugf("unpacking bundleImage '%s' to '%s'", bundleImage, tmpDirs["bundle"])
 
-	ctx, cancel := context.WithTimeout(ctx, e.TimeoutSec)
+	ctx, cancel := context.WithTimeout(ctx, e.Timeout)
 	defer cancel()
 
 	registry, err := containerdregistry.NewRegistry(
