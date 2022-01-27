@@ -3,30 +3,24 @@ package types
 import (
 	"fmt"
 	"sort"
+
+	rbac "k8s.io/api/rbac/v1"
 )
 
-type CsvPermissions struct {
+type CSVPermissions struct {
 	ClusterPermissions []Permissions `json:"clusterPermissions"`
 	Permissions        []Permissions `json:"permissions"`
 }
 
 type Permissions struct {
-	ServiceAccount string `json:"serviceAccount"`
-	Rules          []Rule `json:"rules"`
+	ServiceAccountName string
+	Rules              []Rule
 }
 
 type Rule struct {
-	name            string   // used in tests
-	ApiGroups       []string `json:"apiGroups"`
-	Resources       []string `json:"resources"`
-	Verbs           []string `json:"verbs"`
-	ResourceNames   []string `json:"resourceNames"`
-	NonResourceURLs []string `json:"nonResourceURLs"`
+	rbac.PolicyRule
+	name string // Used in tests
 }
-
-type operator string
-
-type permissionType string
 
 type RuleFilter struct {
 	PermissionType           permissionType
@@ -42,15 +36,11 @@ type FilterObj struct {
 	OperatorName operator
 }
 
-type filterFunc func(*Rule, RuleFilter) *Rule
+type Filter interface {
+	filter(*rbac.PolicyRule, *FilterObj) *rbac.PolicyRule
+}
 
-const (
-	apiGroupFilterType        = "apiGroupFilter"
-	resourcesFilterType       = "resourcesFilter"
-	verbsFilterType           = "verbsFilter"
-	resourceNamesFilterType   = "resourceNamesFilter"
-	nonResourceURLsFilterType = "nonResourceURLsFilter"
-)
+type operator string
 
 var (
 	InOperator           operator = "IN"
@@ -62,93 +52,73 @@ var (
 	AnyOperator          operator = "ANY"
 )
 
+type permissionType string
+
 var (
 	AllPermissionType        permissionType = "all"
 	NameSpacedPermissionType permissionType = "namespaced"
 	ClusterPermissionType    permissionType = "clusterScoped"
 )
 
-func genFilter(attrFetcher func(*Rule) []string, filterType string) filterFunc {
-	return func(rule *Rule, filter RuleFilter) *Rule {
-		args := attrFetcher(rule)
-		filterObj := func() *FilterObj {
-			switch filterType {
-			case apiGroupFilterType:
-				return filter.ApiGroupFilterObj
-			case resourcesFilterType:
-				return filter.ResourcesFilterObj
-			case verbsFilterType:
-				return filter.VerbsFilterObj
-			case resourceNamesFilterType:
-				return filter.ResourceNamesFilterObj
-			case nonResourceURLsFilterType:
-				return filter.NonResourceURLsFilterObj
-			default:
-				panic("Unsupported filter type")
-			}
-		}()
-		if eval(args, filterObj) {
-			return rule
-		}
-		// Return nil if the rule doesnt match the filtering condition.
-		return nil
+type apiGroupFilter struct{}
+
+func (f apiGroupFilter) filter(rule *rbac.PolicyRule, filterObj *FilterObj) *rbac.PolicyRule {
+	concernedRuleAttrs := rule.APIGroups
+	if eval(concernedRuleAttrs, filterObj) {
+		return rule
 	}
+	return nil
 }
 
-var (
-	apiGroupFilter = genFilter(
-		func(r *Rule) []string {
-			if r != nil {
-				return r.ApiGroups
-			}
-			return []string{}
-		},
-		apiGroupFilterType,
-	)
-	resourcesFilter = genFilter(
-		func(r *Rule) []string {
-			if r != nil {
-				return r.Resources
-			}
-			return []string{}
-		},
-		resourcesFilterType,
-	)
-	verbsFilter = genFilter(
-		func(r *Rule) []string {
-			if r != nil {
-				return r.Verbs
-			}
-			return []string{}
-		},
-		verbsFilterType,
-	)
-	resourceNamesFilter = genFilter(
-		func(r *Rule) []string {
-			if r != nil {
-				return r.ResourceNames
-			}
-			return []string{}
-		},
-		resourceNamesFilterType,
-	)
-	nonResourceURLsFilter = genFilter(
-		func(r *Rule) []string {
-			if r != nil {
-				return r.NonResourceURLs
-			}
-			return []string{}
-		},
-		nonResourceURLsFilterType,
-	)
-)
+type resourcesFilter struct{}
+
+func (f resourcesFilter) filter(rule *rbac.PolicyRule, filterObj *FilterObj) *rbac.PolicyRule {
+	concernedRuleAttrs := rule.Resources
+	if eval(concernedRuleAttrs, filterObj) {
+		return rule
+	}
+	return nil
+}
+
+type resourceNamesFilter struct{}
+
+func (f resourceNamesFilter) filter(rule *rbac.PolicyRule, filterObj *FilterObj) *rbac.PolicyRule {
+	concernedRuleAttrs := rule.ResourceNames
+	if eval(concernedRuleAttrs, filterObj) {
+		return rule
+	}
+	return nil
+}
+
+type verbsFilter struct{}
+
+func (f verbsFilter) filter(rule *rbac.PolicyRule, filterObj *FilterObj) *rbac.PolicyRule {
+	concernedRuleAttrs := rule.Verbs
+	if eval(concernedRuleAttrs, filterObj) {
+		return rule
+	}
+	return nil
+}
+
+type nonResourceURLsFilter struct{}
+
+func (f nonResourceURLsFilter) filter(rule *rbac.PolicyRule, filterObj *FilterObj) *rbac.PolicyRule {
+	concernedRuleAttrs := rule.NonResourceURLs
+	if eval(concernedRuleAttrs, filterObj) {
+		return rule
+	}
+	return nil
+}
 
 // Returns the list of rules matching the filtering conditions
-func (cp CsvPermissions) FilterRules(ruleMatcher RuleFilter) []Rule {
+func (cp CSVPermissions) FilterRules(ruleFilter RuleFilter) []Rule {
 	concernedPermissionRules := func() []Permissions {
-		switch ruleMatcher.PermissionType {
+		switch ruleFilter.PermissionType {
 		case AllPermissionType:
-			return append(cp.ClusterPermissions, cp.Permissions...)
+			res := make([]Permissions, 0)
+			res = append(res, cp.ClusterPermissions...)
+			res = append(res, cp.Permissions...)
+			return res
 		case NameSpacedPermissionType:
 			return cp.Permissions
 		case ClusterPermissionType:
@@ -160,7 +130,7 @@ func (cp CsvPermissions) FilterRules(ruleMatcher RuleFilter) []Rule {
 	filteredRules := make([]Rule, 0)
 	for _, permissionRule := range concernedPermissionRules {
 		for _, rule := range permissionRule.Rules {
-			res := runFilters(getAllAttributeFilters(), &rule, ruleMatcher)
+			res := runFilters(getAllAttributeFilters(), &rule.PolicyRule, ruleFilter)
 			if res != nil {
 				filteredRules = append(filteredRules, rule)
 			}
@@ -170,13 +140,14 @@ func (cp CsvPermissions) FilterRules(ruleMatcher RuleFilter) []Rule {
 	return filteredRules
 }
 
-func runFilters(filters []filterFunc, rule *Rule, condition RuleFilter) *Rule {
+func runFilters(filters []Filter, rule *rbac.PolicyRule, ruleFilter RuleFilter) *rbac.PolicyRule {
 	if len(filters) == 0 || rule == nil {
 		return rule
 	}
 
 	for _, filter := range filters {
-		res := filter(rule, condition)
+		filterObj := getConcernedFilterObj(filter, ruleFilter)
+		res := filter.filter(rule, filterObj)
 		if res == nil {
 			return nil
 		}
@@ -184,13 +155,30 @@ func runFilters(filters []filterFunc, rule *Rule, condition RuleFilter) *Rule {
 	return rule
 }
 
-func getAllAttributeFilters() []filterFunc {
-	return []filterFunc{
-		apiGroupFilter,
-		resourcesFilter,
-		verbsFilter,
-		resourceNamesFilter,
-		nonResourceURLsFilter,
+func getConcernedFilterObj(filter Filter, ruleFilter RuleFilter) *FilterObj {
+	switch filter.(type) {
+	case apiGroupFilter:
+		return ruleFilter.ApiGroupFilterObj
+	case resourcesFilter:
+		return ruleFilter.ResourcesFilterObj
+	case verbsFilter:
+		return ruleFilter.VerbsFilterObj
+	case resourceNamesFilter:
+		return ruleFilter.ResourceNamesFilterObj
+	case nonResourceURLsFilter:
+		return ruleFilter.NonResourceURLsFilterObj
+	default:
+		panic("runFilters: Unknown filter type")
+	}
+}
+
+func getAllAttributeFilters() []Filter {
+	return []Filter{
+		apiGroupFilter{},
+		resourcesFilter{},
+		verbsFilter{},
+		resourceNamesFilter{},
+		nonResourceURLsFilter{},
 	}
 }
 
@@ -208,11 +196,16 @@ func equal(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	sort.Strings(a)
-	sort.Strings(b)
+	// Needed for thread safety.
+	copyA := make([]string, len(a))
+	copyB := make([]string, len(b))
+	copy(copyA, a)
+	copy(copyB, b)
+	sort.Strings(copyA)
+	sort.Strings(copyB)
 
-	for index := range a {
-		if a[index] != b[index] {
+	for index := range copyA {
+		if copyA[index] != copyB[index] {
 			return false
 		}
 	}

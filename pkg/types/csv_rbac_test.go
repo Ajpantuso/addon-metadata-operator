@@ -3,29 +3,35 @@ package types
 import (
 	"testing"
 
+	rbac "k8s.io/api/rbac/v1"
+
 	"github.com/stretchr/testify/require"
 )
 
 func TestFilterRules(t *testing.T) {
-	inputRbacRules := CsvPermissions{
+	inputRbacRules := CSVPermissions{
 		ClusterPermissions: []Permissions{
 			{
 				Rules: []Rule{
 					{
-						name:            "rule-1",
-						ApiGroups:       []string{"api_group_1"},
-						Resources:       []string{"resource_1"},
-						Verbs:           []string{"*"},
-						ResourceNames:   []string{"sample1"},
-						NonResourceURLs: []string{},
+						name: "rule-1",
+						PolicyRule: rbac.PolicyRule{
+							APIGroups:       []string{"api_group_1"},
+							Resources:       []string{"resource_1"},
+							Verbs:           []string{"*"},
+							ResourceNames:   []string{"sample1"},
+							NonResourceURLs: []string{},
+						},
 					},
 					{
-						name:            "rule-2",
-						ApiGroups:       []string{"api_group_2", "api_group_3", "api_group_1"},
-						Resources:       []string{"resource_2", "resource_3", "*"},
-						Verbs:           []string{"*"},
-						ResourceNames:   []string{"sample2", "sample3"},
-						NonResourceURLs: []string{},
+						name: "rule-2",
+						PolicyRule: rbac.PolicyRule{
+							APIGroups:       []string{"api_group_2", "api_group_3", "api_group_1"},
+							Resources:       []string{"resource_2", "resource_3", "*"},
+							Verbs:           []string{"*"},
+							ResourceNames:   []string{"sample2", "sample3"},
+							NonResourceURLs: []string{},
+						},
 					},
 				},
 			},
@@ -34,12 +40,14 @@ func TestFilterRules(t *testing.T) {
 			{
 				Rules: []Rule{
 					{
-						name:            "rule-3",
-						ApiGroups:       []string{"api_group_4"},
-						Resources:       []string{"resource_5"},
-						Verbs:           []string{"*"},
-						ResourceNames:   []string{"sample4"},
-						NonResourceURLs: []string{"port-forward"},
+						name: "rule-3",
+						PolicyRule: rbac.PolicyRule{
+							APIGroups:       []string{"api_group_4"},
+							Resources:       []string{"resource_5"},
+							Verbs:           []string{"*"},
+							ResourceNames:   []string{"sample4"},
+							NonResourceURLs: []string{"port-forward"},
+						},
 					},
 				},
 			},
@@ -177,14 +185,29 @@ func TestFilterRules(t *testing.T) {
 			},
 			expectedOutput: []string{"rule-2", "rule-3"},
 		},
+		{
+			input: RuleFilter{
+				PermissionType: AllPermissionType,
+				ApiGroupFilterObj: &FilterObj{
+					Args:         []string{"api_group_3", "api_group_1"},
+					OperatorName: AnyOperator,
+				},
+			},
+			expectedOutput: []string{"rule-1", "rule-2"},
+		},
 	}
 
 	for _, testCase := range filterCases {
-		res := inputRbacRules.FilterRules(testCase.input)
-		resRuleNames := make([]string, 0)
-		for _, item := range res {
-			resRuleNames = append(resRuleNames, item.name)
-		}
-		require.Equal(t, testCase.expectedOutput, resRuleNames)
+		tc := testCase
+		t.Run("TestFilterRules",
+			func(t *testing.T) {
+				t.Parallel()
+				res := inputRbacRules.FilterRules(tc.input)
+				resRuleNames := make([]string, 0)
+				for _, item := range res {
+					resRuleNames = append(resRuleNames, item.name)
+				}
+				require.Equal(t, tc.expectedOutput, resRuleNames)
+			})
 	}
 }
