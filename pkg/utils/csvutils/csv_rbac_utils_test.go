@@ -10,7 +10,7 @@ import (
 
 func TestWildCardApiGroupPresent(t *testing.T) {
 	rule1 := types.CSVPermissions{
-		ClusterPermissions: []types.Permissions{
+		ClusterPermissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -34,7 +34,7 @@ func TestWildCardApiGroupPresent(t *testing.T) {
 				},
 			},
 		},
-		Permissions: []types.Permissions{
+		Permissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -51,7 +51,7 @@ func TestWildCardApiGroupPresent(t *testing.T) {
 		},
 	}
 	rule2 := types.CSVPermissions{
-		ClusterPermissions: []types.Permissions{
+		ClusterPermissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -75,7 +75,7 @@ func TestWildCardApiGroupPresent(t *testing.T) {
 				},
 			},
 		},
-		Permissions: []types.Permissions{
+		Permissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -121,7 +121,7 @@ func TestWildCardApiGroupPresent(t *testing.T) {
 
 func TestWildCardResourcePresent(t *testing.T) {
 	rule1 := types.CSVPermissions{
-		ClusterPermissions: []types.Permissions{
+		ClusterPermissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -138,7 +138,7 @@ func TestWildCardResourcePresent(t *testing.T) {
 		},
 	}
 	rule2 := types.CSVPermissions{
-		ClusterPermissions: []types.Permissions{
+		ClusterPermissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -156,7 +156,7 @@ func TestWildCardResourcePresent(t *testing.T) {
 	}
 
 	rule3 := types.CSVPermissions{
-		ClusterPermissions: []types.Permissions{
+		ClusterPermissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -209,7 +209,7 @@ func TestWildCardResourcePresent(t *testing.T) {
 
 func TestCheckForConfidentialObjAccessAtClusterScope(t *testing.T) {
 	rule1 := types.CSVPermissions{
-		ClusterPermissions: []types.Permissions{
+		ClusterPermissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -226,7 +226,7 @@ func TestCheckForConfidentialObjAccessAtClusterScope(t *testing.T) {
 		},
 	}
 	rule2 := types.CSVPermissions{
-		ClusterPermissions: []types.Permissions{
+		ClusterPermissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -243,7 +243,7 @@ func TestCheckForConfidentialObjAccessAtClusterScope(t *testing.T) {
 	}
 
 	rule3 := types.CSVPermissions{
-		ClusterPermissions: []types.Permissions{
+		ClusterPermissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -260,7 +260,7 @@ func TestCheckForConfidentialObjAccessAtClusterScope(t *testing.T) {
 	}
 
 	rule4 := types.CSVPermissions{
-		ClusterPermissions: []types.Permissions{
+		ClusterPermissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{
@@ -277,7 +277,7 @@ func TestCheckForConfidentialObjAccessAtClusterScope(t *testing.T) {
 	}
 
 	rule5 := types.CSVPermissions{
-		Permissions: []types.Permissions{
+		Permissions: []types.Permission{
 			{
 				Rules: []types.Rule{
 					{

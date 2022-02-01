@@ -8,11 +8,28 @@ import (
 )
 
 type CSVPermissions struct {
-	ClusterPermissions []Permissions `json:"clusterPermissions"`
-	Permissions        []Permissions `json:"permissions"`
+	ClusterPermissions []Permission `json:"clusterPermissions"`
+	Permissions        []Permission `json:"permissions"`
 }
 
-type Permissions struct {
+// Returns the list of rules matching the filtering conditions
+func (cp CSVPermissions) FilterRules(ruleFilter RuleFilter) []Rule {
+	var filtered []Rule
+
+	for _, perm := range ruleFilter.GetRelevantPermissions(cp) {
+		for _, rule := range perm.Rules {
+			if res := ruleFilter.Run(&rule.PolicyRule); res == nil {
+				continue
+			}
+
+			filtered = append(filtered, rule)
+		}
+	}
+
+	return filtered
+}
+
+type Permission struct {
 	ServiceAccountName string
 	Rules              []Rule
 }
@@ -22,163 +39,152 @@ type Rule struct {
 	name string // Used in tests
 }
 
-type RuleFilter struct {
-	PermissionType           permissionType
-	ApiGroupFilterObj        *FilterObj
-	ResourcesFilterObj       *FilterObj
-	VerbsFilterObj           *FilterObj
-	ResourceNamesFilterObj   *FilterObj
-	NonResourceURLsFilterObj *FilterObj
-}
-
-type FilterObj struct {
-	Args         []string
-	OperatorName operator
-}
-
-type Filter interface {
-	filter(*rbac.PolicyRule, *FilterObj) *rbac.PolicyRule
-}
-
-type operator string
-
-var (
-	InOperator           operator = "IN"
-	NotInOperator        operator = "NOT_IN"
-	EqualsOperator       operator = "EQUAL"
-	NotEqualOperator     operator = "NOT_EQUAL"
-	ExistsOperator       operator = "EXISTS"
-	DoesNotExistOperator operator = "DOES_NOT_EXIST"
-	AnyOperator          operator = "ANY"
-)
-
 type permissionType string
 
-var (
+const (
 	AllPermissionType        permissionType = "all"
 	NameSpacedPermissionType permissionType = "namespaced"
 	ClusterPermissionType    permissionType = "clusterScoped"
 )
 
-type apiGroupFilter struct{}
-
-func (f apiGroupFilter) filter(rule *rbac.PolicyRule, filterObj *FilterObj) *rbac.PolicyRule {
-	concernedRuleAttrs := rule.APIGroups
-	if eval(concernedRuleAttrs, filterObj) {
-		return rule
-	}
-	return nil
+type RuleFilter struct {
+	PermissionType permissionType
+	Filters        []Filter
 }
 
-type resourcesFilter struct{}
-
-func (f resourcesFilter) filter(rule *rbac.PolicyRule, filterObj *FilterObj) *rbac.PolicyRule {
-	concernedRuleAttrs := rule.Resources
-	if eval(concernedRuleAttrs, filterObj) {
-		return rule
+func (r *RuleFilter) GetRelevantPermissions(cp CSVPermissions) []Permission {
+	switch r.PermissionType {
+	case AllPermissionType:
+		return append(cp.ClusterPermissions, cp.Permissions...)
+	case NameSpacedPermissionType:
+		return cp.Permissions
+	case ClusterPermissionType:
+		return cp.ClusterPermissions
+	default:
+		return []Permission{}
 	}
-	return nil
 }
 
-type resourceNamesFilter struct{}
-
-func (f resourceNamesFilter) filter(rule *rbac.PolicyRule, filterObj *FilterObj) *rbac.PolicyRule {
-	concernedRuleAttrs := rule.ResourceNames
-	if eval(concernedRuleAttrs, filterObj) {
+func (r *RuleFilter) Run(rule *rbac.PolicyRule) *rbac.PolicyRule {
+	if len(r.Filters) == 0 || rule == nil {
 		return rule
 	}
-	return nil
-}
 
-type verbsFilter struct{}
-
-func (f verbsFilter) filter(rule *rbac.PolicyRule, filterObj *FilterObj) *rbac.PolicyRule {
-	concernedRuleAttrs := rule.Verbs
-	if eval(concernedRuleAttrs, filterObj) {
-		return rule
-	}
-	return nil
-}
-
-type nonResourceURLsFilter struct{}
-
-func (f nonResourceURLsFilter) filter(rule *rbac.PolicyRule, filterObj *FilterObj) *rbac.PolicyRule {
-	concernedRuleAttrs := rule.NonResourceURLs
-	if eval(concernedRuleAttrs, filterObj) {
-		return rule
-	}
-	return nil
-}
-
-// Returns the list of rules matching the filtering conditions
-func (cp CSVPermissions) FilterRules(ruleFilter RuleFilter) []Rule {
-	concernedPermissionRules := func() []Permissions {
-		switch ruleFilter.PermissionType {
-		case AllPermissionType:
-			res := make([]Permissions, 0)
-			res = append(res, cp.ClusterPermissions...)
-			res = append(res, cp.Permissions...)
-			return res
-		case NameSpacedPermissionType:
-			return cp.Permissions
-		case ClusterPermissionType:
-			return cp.ClusterPermissions
-		default:
-			return []Permissions{}
+	for _, f := range r.Filters {
+		if res := f.Filter(rule); res != nil {
+			continue
 		}
-	}()
-	filteredRules := make([]Rule, 0)
-	for _, permissionRule := range concernedPermissionRules {
-		for _, rule := range permissionRule.Rules {
-			res := runFilters(getAllAttributeFilters(), &rule.PolicyRule, ruleFilter)
-			if res != nil {
-				filteredRules = append(filteredRules, rule)
-			}
-		}
+
+		return nil
 	}
 
-	return filteredRules
-}
-
-func runFilters(filters []Filter, rule *rbac.PolicyRule, ruleFilter RuleFilter) *rbac.PolicyRule {
-	if len(filters) == 0 || rule == nil {
-		return rule
-	}
-
-	for _, filter := range filters {
-		filterObj := getConcernedFilterObj(filter, ruleFilter)
-		res := filter.filter(rule, filterObj)
-		if res == nil {
-			return nil
-		}
-	}
 	return rule
 }
 
-func getConcernedFilterObj(filter Filter, ruleFilter RuleFilter) *FilterObj {
-	switch filter.(type) {
-	case apiGroupFilter:
-		return ruleFilter.ApiGroupFilterObj
-	case resourcesFilter:
-		return ruleFilter.ResourcesFilterObj
-	case verbsFilter:
-		return ruleFilter.VerbsFilterObj
-	case resourceNamesFilter:
-		return ruleFilter.ResourceNamesFilterObj
-	case nonResourceURLsFilter:
-		return ruleFilter.NonResourceURLsFilterObj
-	default:
-		panic("runFilters: Unknown filter type")
-	}
+type FilterParams struct {
+	Args         []string
+	OperatorName Operator
 }
 
-func getAllAttributeFilters() []Filter {
-	return []Filter{
-		apiGroupFilter{},
-		resourcesFilter{},
-		verbsFilter{},
-		resourceNamesFilter{},
-		nonResourceURLsFilter{},
+type Operator string
+
+const (
+	InOperator           Operator = "IN"
+	NotInOperator        Operator = "NOT_IN"
+	EqualsOperator       Operator = "EQUAL"
+	NotEqualOperator     Operator = "NOT_EQUAL"
+	ExistsOperator       Operator = "EXISTS"
+	DoesNotExistOperator Operator = "DOES_NOT_EXIST"
+	AnyOperator          Operator = "ANY"
+)
+
+type Filter interface {
+	Filter(*rbac.PolicyRule) *rbac.PolicyRule
+}
+
+type APIGroupFilter struct {
+	Params FilterParams
+}
+
+func (f *APIGroupFilter) Filter(rule *rbac.PolicyRule) *rbac.PolicyRule {
+	concernedRuleAttrs := rule.APIGroups
+	if eval(concernedRuleAttrs, f.Params) {
+		return rule
+	}
+
+	return nil
+}
+
+type ResourcesFilter struct {
+	Params FilterParams
+}
+
+func (f *ResourcesFilter) Filter(rule *rbac.PolicyRule) *rbac.PolicyRule {
+	concernedRuleAttrs := rule.Resources
+	if eval(concernedRuleAttrs, f.Params) {
+		return rule
+	}
+
+	return nil
+}
+
+type ResourceNamesFilter struct {
+	Params FilterParams
+}
+
+func (f *ResourceNamesFilter) Filter(rule *rbac.PolicyRule) *rbac.PolicyRule {
+	concernedRuleAttrs := rule.ResourceNames
+	if eval(concernedRuleAttrs, f.Params) {
+		return rule
+	}
+
+	return nil
+}
+
+type VerbsFilter struct {
+	Params FilterParams
+}
+
+func (f *VerbsFilter) Filter(rule *rbac.PolicyRule) *rbac.PolicyRule {
+	concernedRuleAttrs := rule.Verbs
+	if eval(concernedRuleAttrs, f.Params) {
+		return rule
+	}
+
+	return nil
+}
+
+type NonResourceURLsFilter struct {
+	Params FilterParams
+}
+
+func (f *NonResourceURLsFilter) Filter(rule *rbac.PolicyRule) *rbac.PolicyRule {
+	concernedRuleAttrs := rule.NonResourceURLs
+	if eval(concernedRuleAttrs, f.Params) {
+		return rule
+	}
+
+	return nil
+}
+
+func eval(ruleArgs []string, params FilterParams) bool {
+	switch params.OperatorName {
+	case InOperator:
+		return includes(ruleArgs, params.Args)
+	case NotInOperator:
+		return !includes(ruleArgs, params.Args)
+	case EqualsOperator:
+		return equal(ruleArgs, params.Args)
+	case NotEqualOperator:
+		return !equal(ruleArgs, params.Args)
+	case ExistsOperator:
+		return len(ruleArgs) > 0
+	case DoesNotExistOperator:
+		return len(ruleArgs) == 0
+	case AnyOperator:
+		return any(ruleArgs, params.Args)
+	default:
+		panic(fmt.Sprintf("eval: Unsupported operator %s", params.OperatorName))
 	}
 }
 
@@ -229,28 +235,4 @@ func sliceToSet(items []string) map[string]struct{} {
 		res[item] = struct{}{}
 	}
 	return res
-}
-
-func eval(ruleArgs []string, filterObj *FilterObj) bool {
-	if filterObj == nil {
-		return true
-	}
-	switch filterObj.OperatorName {
-	case InOperator:
-		return includes(ruleArgs, filterObj.Args)
-	case NotInOperator:
-		return !includes(ruleArgs, filterObj.Args)
-	case EqualsOperator:
-		return equal(ruleArgs, filterObj.Args)
-	case NotEqualOperator:
-		return !equal(ruleArgs, filterObj.Args)
-	case ExistsOperator:
-		return len(ruleArgs) > 0
-	case DoesNotExistOperator:
-		return len(ruleArgs) == 0
-	case AnyOperator:
-		return any(ruleArgs, filterObj.Args)
-	default:
-		panic(fmt.Sprintf("eval: Unsupported operator %s", filterObj.OperatorName))
-	}
 }

@@ -18,17 +18,25 @@ const wildCardStr = "*"
 func CheckForConfidentialObjAccessAtClusterScope(csvPermissions *types.CSVPermissions) bool {
 	filterConds := types.RuleFilter{
 		PermissionType: types.ClusterPermissionType,
-		ApiGroupFilterObj: &types.FilterObj{
-			Args:         []string{""},
-			OperatorName: types.InOperator,
-		},
-		ResourcesFilterObj: &types.FilterObj{
-			Args:         []string{"secrets", "configmaps"},
-			OperatorName: types.AnyOperator,
-		},
-		ResourceNamesFilterObj: &types.FilterObj{
-			Args:         []string{},
-			OperatorName: types.DoesNotExistOperator,
+		Filters: []types.Filter{
+			&types.APIGroupFilter{
+				Params: types.FilterParams{
+					Args:         []string{""},
+					OperatorName: types.InOperator,
+				},
+			},
+			&types.ResourcesFilter{
+				Params: types.FilterParams{
+					Args:         []string{"secrets", "configmaps"},
+					OperatorName: types.AnyOperator,
+				},
+			},
+			&types.ResourceNamesFilter{
+				Params: types.FilterParams{
+					Args:         []string{},
+					OperatorName: types.DoesNotExistOperator,
+				},
+			},
 		},
 	}
 	matchedRules := csvPermissions.FilterRules(filterConds)
@@ -39,9 +47,13 @@ func CheckForConfidentialObjAccessAtClusterScope(csvPermissions *types.CSVPermis
 func WildCardApiGroupPresent(csvPermissions *types.CSVPermissions) bool {
 	filterConds := types.RuleFilter{
 		PermissionType: types.AllPermissionType,
-		ApiGroupFilterObj: &types.FilterObj{
-			Args:         []string{wildCardStr},
-			OperatorName: types.InOperator,
+		Filters: []types.Filter{
+			&types.APIGroupFilter{
+				Params: types.FilterParams{
+					Args:         []string{wildCardStr},
+					OperatorName: types.InOperator,
+				},
+			},
 		},
 	}
 	matchedRules := csvPermissions.FilterRules(filterConds)
@@ -52,13 +64,19 @@ func WildCardApiGroupPresent(csvPermissions *types.CSVPermissions) bool {
 func WildCardResourcePresent(csvPermissions *types.CSVPermissions, ownedApis []string) bool {
 	filterConds := types.RuleFilter{
 		PermissionType: types.AllPermissionType,
-		ApiGroupFilterObj: &types.FilterObj{
-			Args:         ownedApis,
-			OperatorName: types.NotEqualOperator,
-		},
-		ResourcesFilterObj: &types.FilterObj{
-			Args:         []string{wildCardStr},
-			OperatorName: types.InOperator,
+		Filters: []types.Filter{
+			&types.APIGroupFilter{
+				Params: types.FilterParams{
+					Args:         ownedApis,
+					OperatorName: types.NotEqualOperator,
+				},
+			},
+			&types.ResourcesFilter{
+				Params: types.FilterParams{
+					Args:         []string{wildCardStr},
+					OperatorName: types.InOperator,
+				},
+			},
 		},
 	}
 	matchedRules := csvPermissions.FilterRules(filterConds)
@@ -93,10 +111,10 @@ func GetPermissions(csv *registry.ClusterServiceVersion) (*types.CSVPermissions,
 	}, nil
 }
 
-func operatorPermissions2LocalPermissions(permissions []operatorv1alpha1.StrategyDeploymentPermissions) []types.Permissions {
-	res := make([]types.Permissions, len(permissions))
+func operatorPermissions2LocalPermissions(permissions []operatorv1alpha1.StrategyDeploymentPermissions) []types.Permission {
+	res := make([]types.Permission, len(permissions))
 	for _, permission := range permissions {
-		res = append(res, types.Permissions{
+		res = append(res, types.Permission{
 			ServiceAccountName: permission.ServiceAccountName,
 			Rules:              operatorRule2localRules(permission.Rules),
 		})
