@@ -13,6 +13,7 @@ type options struct {
 	Version  string
 	Disabled string
 	Enabled  string
+	Stages   string
 }
 
 func (o *options) AddEnvFlag(flags *pflag.FlagSet) {
@@ -48,6 +49,15 @@ func (o *options) AddEnabledFlag(flags *pflag.FlagSet) {
 		"enabled",
 		o.Enabled,
 		"Enable specific validators, separated by ','. Can't be combined with --disabled.",
+	)
+}
+
+func (o *options) AddStagesFlag(flags *pflag.FlagSet) {
+	flags.StringVar(
+		&o.Stages,
+		"stages",
+		o.Stages,
+		"Only enable validators which match the given execution stages, seperated by a ','.",
 	)
 }
 

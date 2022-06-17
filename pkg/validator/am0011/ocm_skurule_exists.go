@@ -13,9 +13,10 @@ func init() {
 }
 
 const (
-	code = 11
-	name = "sku_validation"
-	desc = "Validates whether a SKU Rule exists in OCM for quota provided in addon metadata"
+	code  = 11
+	name  = "sku_validation"
+	desc  = "Validates whether a SKU Rule exists in OCM for quota provided in addon metadata"
+	stage = validator.StagePreBuild
 )
 
 func NewOCMSKURuleExists(deps validator.Dependencies) (validator.Validator, error) {
@@ -23,6 +24,7 @@ func NewOCMSKURuleExists(deps validator.Dependencies) (validator.Validator, erro
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(desc),
+		validator.BaseStage(stage),
 	)
 	if err != nil {
 		return nil, err

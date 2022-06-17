@@ -34,7 +34,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	table, err := cli.NewTable(
-		cli.WithHeaders{"CODE", "NAME", "DESCRIPTION"},
+		cli.WithHeaders{"CODE", "NAME", "DESCRIPTION", "STAGE"},
 	)
 	if err != nil {
 		return fmt.Errorf("initializing table: %w", err)
@@ -42,9 +42,10 @@ func run(cmd *cobra.Command, args []string) error {
 
 	for _, v := range runner.GetValidators() {
 		table.WriteRow(cli.TableRow{
-			cli.Field{Value: v.Code().String()},
+			cli.Field{Value: v.Code()},
 			cli.Field{Value: v.Name()},
 			cli.Field{Value: v.Description()},
+			cli.Field{Value: v.Stage()},
 		})
 	}
 

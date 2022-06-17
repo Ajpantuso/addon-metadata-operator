@@ -14,9 +14,10 @@ func init() {
 }
 
 const (
-	code = 1
-	name = "default_channel"
-	desc = "Ensure defaultChannel is present in list of channels"
+	code  = 1
+	name  = "default_channel"
+	desc  = "Ensure defaultChannel is present in list of channels"
+	stage = validator.StagePreBuild
 )
 
 func NewDefaultChannel(deps validator.Dependencies) (validator.Validator, error) {
@@ -24,6 +25,7 @@ func NewDefaultChannel(deps validator.Dependencies) (validator.Validator, error)
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(desc),
+		validator.BaseStage(stage),
 	)
 	if err != nil {
 		return nil, err

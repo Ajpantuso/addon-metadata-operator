@@ -14,9 +14,10 @@ func init() {
 }
 
 const (
-	code = 8
-	name = "ensure_namespace"
-	desc = "Ensure that the target namespace is listed in the set of channels listed"
+	code  = 8
+	name  = "ensure_namespace"
+	desc  = "Ensure that the target namespace is listed in the set of channels listed"
+	stage = validator.StagePreBuild
 )
 
 func NewNamespace(deps validator.Dependencies) (validator.Validator, error) {
@@ -24,6 +25,7 @@ func NewNamespace(deps validator.Dependencies) (validator.Validator, error) {
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(desc),
+		validator.BaseStage(stage),
 	)
 	if err != nil {
 		return nil, err

@@ -14,9 +14,10 @@ func init() {
 }
 
 const (
-	code = 9
-	name = "addon_parameters"
-	desc = "Ensure `addOnParameters` section in the addon metadata is rightfully defined"
+	code  = 9
+	name  = "addon_parameters"
+	desc  = "Ensure `addOnParameters` section in the addon metadata is rightfully defined"
+	stage = validator.StagePreBuild
 )
 
 func NewAddonParameters(deps validator.Dependencies) (validator.Validator, error) {
@@ -24,6 +25,7 @@ func NewAddonParameters(deps validator.Dependencies) (validator.Validator, error
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(desc),
+		validator.BaseStage(stage),
 	)
 	if err != nil {
 		return nil, err

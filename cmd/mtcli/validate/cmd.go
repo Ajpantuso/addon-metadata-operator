@@ -55,6 +55,7 @@ func Cmd() *cobra.Command {
 	opts.AddVersionFlag(flags)
 	opts.AddDisabledFlag(flags)
 	opts.AddEnabledFlag(flags)
+	opts.AddStagesFlag(flags)
 
 	return cmd
 }
@@ -89,7 +90,7 @@ func run(opts *options) func(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("extracting and parsing addon bundles: %w", err)
 		}
 
-		filter, err := generateFilter(opts.Disabled, opts.Enabled)
+		filter, err := generateFilter(opts.Disabled, opts.Enabled, opts.Stages)
 		if err != nil {
 			return fmt.Errorf("generating validator filter: %w", err)
 		}
@@ -172,10 +173,12 @@ func verifyAddonDir(addonDir string) error {
 	return nil
 }
 
-func generateFilter(disabled, enabled string) (validator.Filter, error) {
-	if disabled == "" && enabled == "" {
+func generateFilter(disabled, enabled, stages string) (validator.Filter, error) {
+	if disabled == "" && enabled == "" && stages == "" {
 		return nil, nil
 	}
+
+	filter := validator.NoFilter
 
 	if disabled != "" {
 		codes, err := parseCodeList(disabled)
@@ -183,15 +186,28 @@ func generateFilter(disabled, enabled string) (validator.Filter, error) {
 			return nil, fmt.Errorf("unable to process '--disabled' option argument: %w", err)
 		}
 
-		return validator.Not(validator.MatchesCodes(codes...)), nil
+		filter = validator.Not(validator.FilterCodes(codes...))
 	}
 
-	codes, err := parseCodeList(enabled)
-	if err != nil {
-		return nil, fmt.Errorf("unable to process '--enabled' option argument: %w", err)
+	if enabled != "" {
+		codes, err := parseCodeList(enabled)
+		if err != nil {
+			return nil, fmt.Errorf("unable to process '--enabled' option argument: %w", err)
+		}
+
+		filter = validator.FilterCodes(codes...)
 	}
 
-	return validator.MatchesCodes(codes...), nil
+	if stages != "" {
+		stgs, err := parseStageList(stages)
+		if err != nil {
+			return nil, fmt.Errorf("unable to process '--stages' option argument: %w", err)
+		}
+
+		filter = validator.And(filter, validator.FilterStages(stgs...))
+	}
+
+	return filter, nil
 }
 
 func parseCodeList(maybeList string) ([]validator.Code, error) {
@@ -206,6 +222,23 @@ func parseCodeList(maybeList string) ([]validator.Code, error) {
 		}
 
 		res = append(res, c)
+	}
+
+	return res, nil
+}
+
+func parseStageList(maybeList string) ([]validator.Stage, error) {
+	rawStrings := strings.Split(maybeList, ",")
+
+	res := make([]validator.Stage, 0, len(rawStrings))
+
+	for _, s := range rawStrings {
+		s, err := validator.ParseStage(s)
+		if err != nil {
+			return nil, fmt.Errorf("invalid stage list %q: %w", maybeList, err)
+		}
+
+		res = append(res, s)
 	}
 
 	return res, nil

@@ -228,7 +228,9 @@ func (e *validatorEntry) Satisfies(filters ...Filter) bool {
 
 type Filter func(Validator) bool
 
-func MatchesCodes(codes ...Code) Filter {
+func NoFilter(Validator) bool { return true }
+
+func FilterCodes(codes ...Code) Filter {
 	return func(v Validator) bool {
 		for _, c := range codes {
 			if v.Code() == c {
@@ -240,8 +242,26 @@ func MatchesCodes(codes ...Code) Filter {
 	}
 }
 
+func FilterStages(stages ...Stage) Filter {
+	return func(v Validator) bool {
+		for _, s := range stages {
+			if v.Stage() == s {
+				return true
+			}
+		}
+
+		return false
+	}
+}
+
 func Not(f Filter) Filter {
 	return func(v Validator) bool {
 		return !f(v)
+	}
+}
+
+func And(f1, f2 Filter) Filter {
+	return func(v Validator) bool {
+		return f1(v) && f2(v)
 	}
 }

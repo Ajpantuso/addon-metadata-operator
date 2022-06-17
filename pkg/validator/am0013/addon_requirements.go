@@ -13,9 +13,10 @@ func init() {
 }
 
 const (
-	code = 13
-	name = "addon_requirements"
-	desc = "Ensure `addOnRequirements` section in the addon metadata is rightfully defined"
+	code  = 13
+	name  = "addon_requirements"
+	desc  = "Ensure `addOnRequirements` section in the addon metadata is rightfully defined"
+	stage = validator.StagePreBuild
 )
 
 func NewAddonRequirements(deps validator.Dependencies) (validator.Validator, error) {
@@ -23,6 +24,7 @@ func NewAddonRequirements(deps validator.Dependencies) (validator.Validator, err
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(desc),
+		validator.BaseStage(stage),
 	)
 	if err != nil {
 		return nil, err

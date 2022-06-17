@@ -17,9 +17,10 @@ func init() {
 }
 
 const (
-	code = 7
-	name = "csv_install_modes"
-	desc = "Validate installMode is supported."
+	code  = 7
+	name  = "csv_install_modes"
+	desc  = "Validate installMode is supported."
+	stage = validator.StagePostBuild
 )
 
 func NewCSVInstallModes(deps validator.Dependencies) (validator.Validator, error) {
@@ -27,6 +28,7 @@ func NewCSVInstallModes(deps validator.Dependencies) (validator.Validator, error
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(desc),
+		validator.BaseStage(stage),
 	)
 	if err != nil {
 		return nil, err

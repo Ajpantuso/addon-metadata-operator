@@ -14,9 +14,10 @@ func init() {
 }
 
 const (
-	code = 6
-	name = "dms_snitchnamepostfix"
-	desc = "Ensure `deadmanssnitch.snitchNamePostFix` doesn't begin with 'hive-'"
+	code  = 6
+	name  = "dms_snitchnamepostfix"
+	desc  = "Ensure `deadmanssnitch.snitchNamePostFix` doesn't begin with 'hive-'"
+	stage = validator.StagePreBuild
 )
 
 func NewDMSSnitchNamePostFix(deps validator.Dependencies) (validator.Validator, error) {
@@ -24,6 +25,7 @@ func NewDMSSnitchNamePostFix(deps validator.Dependencies) (validator.Validator, 
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(desc),
+		validator.BaseStage(stage),
 	)
 
 	return &DMSSnitchNamePostFix{

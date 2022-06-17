@@ -84,14 +84,14 @@ func (r TableRow) ToCells() []*simpletable.Cell {
 }
 
 type Field struct {
-	Value string
+	Value interface{}
 	Color FieldColor
 }
 
 func (f Field) ToCell() *simpletable.Cell {
 	return &simpletable.Cell{
 		Align: simpletable.AlignLeft,
-		Text:  f.Color.Apply(f.Value),
+		Text:  f.Color.Apply(fmt.Sprint(f.Value)),
 	}
 }
 

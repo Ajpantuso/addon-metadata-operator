@@ -13,6 +13,7 @@ const (
 	code        = 5
 	name        = "test_harness"
 	description = "Ensure that an addon has a valid testharness image"
+	stage       = validator.StagePreBuild
 )
 
 func init() {
@@ -24,6 +25,7 @@ func NewTestHarnessExists(deps validator.Dependencies) (validator.Validator, err
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(description),
+		validator.BaseStage(stage),
 	)
 	if err != nil {
 		return nil, err

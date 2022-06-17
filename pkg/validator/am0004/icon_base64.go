@@ -16,9 +16,10 @@ func init() {
 }
 
 const (
-	code = 4
-	name = "icon_base64"
-	desc = "Ensure that `icon` in Addon metadata is rightfully base64 encoded"
+	code  = 4
+	name  = "icon_base64"
+	desc  = "Ensure that `icon` in Addon metadata is rightfully base64 encoded"
+	stage = validator.StagePreBuild
 )
 
 func NewIconBase64(deps validator.Dependencies) (validator.Validator, error) {
@@ -26,6 +27,7 @@ func NewIconBase64(deps validator.Dependencies) (validator.Validator, error) {
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(desc),
+		validator.BaseStage(stage),
 	)
 	if err != nil {
 		return nil, err

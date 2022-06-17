@@ -14,9 +14,10 @@ func init() {
 }
 
 const (
-	code = 10
-	name = "k8s_resource_and_field_names"
-	desc = "Validates k8s namespaces, labels, and annotations within Addon metadata against k8s standards"
+	code  = 10
+	name  = "k8s_resource_and_field_names"
+	desc  = "Validates k8s namespaces, labels, and annotations within Addon metadata against k8s standards"
+	stage = validator.StagePreBuild
 )
 
 func NewK8SResourceAndFieldNames(deps validator.Dependencies) (validator.Validator, error) {
@@ -24,6 +25,7 @@ func NewK8SResourceAndFieldNames(deps validator.Dependencies) (validator.Validat
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(desc),
+		validator.BaseStage(stage),
 	)
 	if err != nil {
 		return nil, err

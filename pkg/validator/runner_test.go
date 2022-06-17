@@ -88,13 +88,13 @@ func TestRunnerRegistration(t *testing.T) {
 	runner, err := NewRunner()
 	require.NoError(t, err)
 
-	vals := runner.GetValidators(MatchesCodes(code))
+	vals := runner.GetValidators(FilterCodes(code))
 	assert.Len(t, vals, 1)
 	assert.Equal(t, code, vals[0].Code())
 	assert.Equal(t, name, vals[0].Name())
 	assert.Equal(t, desc, vals[0].Description())
 
-	vals = runner.GetValidators(Not(MatchesCodes(code)))
+	vals = runner.GetValidators(Not(FilterCodes(code)))
 	assert.Len(t, vals, 0)
 }
 

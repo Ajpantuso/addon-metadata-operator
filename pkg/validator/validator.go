@@ -2,6 +2,7 @@ package validator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -17,6 +18,7 @@ type Validator interface {
 	Name() string
 	// Description returns the displayed description of a Validator instance.
 	Description() string
+	Stage() Stage
 	// Run executes validation tasks against a types.MetaBundle and returns the
 	// result of that task. A context.Context instance is also passed to allow
 	// for cancellation and timeouts to propogate through the validation task
@@ -41,14 +43,16 @@ func NewBase(code Code, opts ...BaseOption) (*Base, error) {
 
 // Base implements the base functionality used by Validator instances.
 type Base struct {
-	code Code
-	name string
-	desc string
+	code  Code
+	name  string
+	desc  string
+	stage Stage
 }
 
 func (b *Base) Code() Code          { return b.code }
 func (b *Base) Name() string        { return b.name }
 func (b *Base) Description() string { return b.desc }
+func (b *Base) Stage() Stage        { return b.stage }
 
 // Option applies a variadic slice of options to a Base instance.
 func (b *Base) Option(opts ...BaseOption) {
@@ -129,6 +133,10 @@ func BaseDesc(desc string) BaseOption {
 	return func(b *Base) { b.desc = desc }
 }
 
+func BaseStage(stage Stage) BaseOption {
+	return func(b *Base) { b.stage = stage }
+}
+
 // ValidatorList is a sortable slice of Validators.
 type ValidatorList []Validator
 
@@ -160,4 +168,24 @@ func ParseCode(maybeCode string) (Code, error) {
 	}
 
 	return result, nil
+}
+
+type Stage string
+
+const (
+	StagePreBuild  = "pre-build"
+	StagePostBuild = "post-build"
+)
+
+var ErrInvalidStage = errors.New("invalid stage")
+
+func ParseStage(maybeStage string) (Stage, error) {
+	switch maybeStage {
+	case string(StagePreBuild):
+		return StagePreBuild, nil
+	case string(StagePostBuild):
+		return StagePostBuild, nil
+	default:
+		return Stage(""), ErrInvalidStage
+	}
 }

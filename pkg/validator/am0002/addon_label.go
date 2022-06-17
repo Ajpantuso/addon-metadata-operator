@@ -13,9 +13,10 @@ func init() {
 }
 
 const (
-	code = 2
-	name = "label_format"
-	desc = "Validates whether label follows the format 'api.openshift.com/addon-<id>'"
+	code  = 2
+	name  = "label_format"
+	desc  = "Validates whether label follows the format 'api.openshift.com/addon-<id>'"
+	stage = validator.StagePreBuild
 )
 
 func NewAddonLabel(deps validator.Dependencies) (validator.Validator, error) {
@@ -23,6 +24,7 @@ func NewAddonLabel(deps validator.Dependencies) (validator.Validator, error) {
 		code,
 		validator.BaseName(name),
 		validator.BaseDesc(desc),
+		validator.BaseStage(stage),
 	)
 	if err != nil {
 		return nil, err
