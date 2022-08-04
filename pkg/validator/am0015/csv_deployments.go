@@ -3,14 +3,11 @@ package am0015
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/mt-sre/addon-metadata-operator/internal/kube"
 	"github.com/mt-sre/addon-metadata-operator/pkg/types"
 	"github.com/mt-sre/addon-metadata-operator/pkg/validator"
 	operatorv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	"github.com/operator-framework/operator-registry/pkg/registry"
-	"golang.org/x/mod/semver"
 	appsv1 "k8s.io/api/apps/v1"
 )
 
@@ -52,7 +49,7 @@ type Spec struct {
 func (c *CSVDeployment) Run(ctx context.Context, mb types.MetaBundle) validator.Result {
 	var msgs []string
 	var spec Spec
-	bundle, err := getLatestBundle(mb.Bundles)
+	bundle, err := validator.GetLatestBundle(mb.Bundles)
 	if err != nil {
 		c.Fail("Error while checking bundles")
 	}
@@ -78,43 +75,4 @@ func (c *CSVDeployment) Run(ctx context.Context, mb types.MetaBundle) validator.
 		return c.Fail(msgs...)
 	}
 	return c.Success()
-}
-
-func getLatestBundle(bundles []*registry.Bundle) (*registry.Bundle, error) {
-	if len(bundles) == 1 {
-		return bundles[0], nil
-	}
-
-	latest := bundles[0]
-	for _, bundle := range bundles[1:] {
-		currVersion, err := getVersion(bundle)
-		if err != nil {
-			return nil, err
-		}
-		currLatestVersion, err := getVersion(latest)
-		if err != nil {
-			return nil, err
-		}
-
-		res := semver.Compare(currVersion, currLatestVersion)
-		// If currVersion is greater than currLatestVersion
-		if res == 1 {
-			latest = bundle
-		}
-	}
-	return latest, nil
-}
-
-func getVersion(bundle *registry.Bundle) (string, error) {
-	csv, err := bundle.ClusterServiceVersion()
-	if err != nil {
-		return "", err
-	}
-
-	version, err := csv.GetVersion()
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("v%s", version), nil
 }
