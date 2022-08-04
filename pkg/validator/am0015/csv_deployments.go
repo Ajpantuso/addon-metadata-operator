@@ -35,12 +35,14 @@ func NewCSVDeployment(deps validator.Dependencies) (validator.Validator, error) 
 	}
 
 	return &CSVDeployment{
-		Base: base,
+		Base:   base,
+		linter: kube.NewDeploymentLinterImpl(),
 	}, nil
 }
 
 type CSVDeployment struct {
 	*validator.Base
+	linter kube.DeploymentLinter
 }
 
 type Spec struct {
@@ -48,7 +50,7 @@ type Spec struct {
 }
 
 func (c *CSVDeployment) Run(ctx context.Context, mb types.MetaBundle) validator.Result {
-	var msg []string
+	var msgs []string
 	var spec Spec
 	bundle, err := getLatestBundle(mb.Bundles)
 	if err != nil {
@@ -67,25 +69,13 @@ func (c *CSVDeployment) Run(ctx context.Context, mb types.MetaBundle) validator.
 	for _, deploymentSpec := range spec.InstallStrategy.StrategySpec.DeploymentSpecs {
 		deployment := appsv1.Deployment{Spec: deploymentSpec.Spec}
 
-		if hasLivenessProbe := kube.HasLivenessProbes(deployment); !hasLivenessProbe.Success {
-			msg = append(msg, hasLivenessProbe.Reasons...)
-		}
+		res := c.linter.Lint(deployment)
 
-		if hasReadinessProbe := kube.HasReadinessProbes(deployment); !hasReadinessProbe.Success {
-			msg = append(msg, hasReadinessProbe.Reasons...)
-		}
-
-		if hasCPUresource := kube.HasCPUResourceRequirements(deployment); !hasCPUresource.Success {
-			msg = append(msg, hasCPUresource.Reasons...)
-		}
-
-		if hasMemory := kube.HasMemoryResourceRequirements(deployment); !hasMemory.Success {
-			msg = append(msg, hasMemory.Reasons...)
-		}
+		msgs = append(msgs, res.Reasons...)
 	}
 
-	if len(msg) > 0 {
-		return c.Fail(msg...)
+	if len(msgs) > 0 {
+		return c.Fail(msgs...)
 	}
 	return c.Success()
 }
